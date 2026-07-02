@@ -1,0 +1,26 @@
+[
+  {
+    "tag": "v0",
+    "model": "hold",
+    "local_mean": 15.91,
+    "local_median": null,
+    "win_rate": null,
+    "ts": "2026-07-02T14:02:25"
+  },
+  {
+    "tag": "v3",
+    "model": "residual",
+    "local_mean": 15.399,
+    "local_median": null,
+    "win_rate": null,
+    "ts": "2026-07-02T14:02:46"
+  },
+  {
+    "tag": "v4",
+    "model": "residual",
+    "local_mean": 15.036,
+    "local_median": null,
+    "win_rate": null,
+    "ts": "2026-07-02T14:48:41"
+  }
+]

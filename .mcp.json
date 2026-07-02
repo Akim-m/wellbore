@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "kaggle": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-remote",
+        "https://www.kaggle.com/mcp",
+        "--header",
+        "Authorization:${AUTH_HEADER}"
+      ],
+      "env": {
+        "AUTH_HEADER": "Bearer ${KAGGLE_API_TOKEN}"
+      }
+    }
+  }
+}
