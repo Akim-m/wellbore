@@ -2,12 +2,13 @@
 
 CODE COMPETITION: writes submission.csv. No internet, no training — inference
 only with pre-trained weights from the attached private dataset
-`aydhin/wellbore-tcn-weights` (10 dilated-TCN fold models + channel stats).
+`aydhin/wellbore-tcn-weights` (15 dilated-TCN fold models + channel stats).
 
-Model: residual TVT path = 0.441*mean(TCN-v1 folds) + 0.667*mean(TCN-v2 folds),
-each config's mean smoothed x301 within the well; TVT = anchor + residual.
-Input channels = the 15 engineered pointwise features. Honest 5-fold OOF pooled
-RMSE 12.03 vs 15.91 hold-TVT (vs 15.04 for the previous GBM+ridge ship).
+Model: residual TVT path = OLS-weighted sum over three TCN generations (each
+group's fold-mean smoothed x301), damped toward hold near PS, TVT = anchor +
+residual. Input channels = the 15 engineered pointwise features. Robust to
+TVT_input NaN gaps (last-known anchor + gap interpolation). Honest 5-fold OOF
+pooled RMSE 11.70 vs 15.91 hold-TVT.
 
 Plus a trajectory-content lookup: a test well physically present in train
 (id-independent X/Y match) gets its exact TVT. Per-well try/except with a
@@ -54,12 +55,13 @@ GRID, BAND, SMOOTH = 0.5, 40.0, 25
 SEARCH, PRE = 40.0, 200
 MIN_PS, RSMOOTH = 50, 301
 YSCALE = 10.0
-W_V1, W_V2 = 0.441, 0.667   # fold-mean OLS stack weights (honest OOF 12.03)
+# full-OOF OLS stack weights over the three TCN generations (honest OOF 11.699)
+GROUP_W = {"v1": 0.208, "v2": 0.4044, "v2s1": 0.4936}
 # near-PS damping: OOF-optimal residual scale by distance-from-PS (ft). The raw
 # ensemble overshoots close to PS where hold is nearly exact; this ramp makes it
-# beat hold at every distance (0-100ft: 1.69 vs hold 1.79).
+# beat hold at every distance (0-100ft: 1.66 vs hold 1.79).
 RAMP_X = np.array([50.0, 175.0, 375.0, 750.0, 1500.0])
-RAMP_Y = np.array([0.114, 0.408, 0.720, 0.911, 1.0])
+RAMP_Y = np.array([0.103, 0.384, 0.698, 0.904, 1.0])
 
 
 def ps_index(hw):
@@ -203,15 +205,18 @@ class TCN(nn.Module):
 
 def load_models(wdir):
     norm = np.load(os.path.join(wdir, "norm.npz"))
-    groups = {"v1": [], "v2": []}
+    groups = {g: [] for g in GROUP_W}
     for p in sorted(glob.glob(os.path.join(wdir, "seq*.pt"))):
+        parts = os.path.basename(p)[:-3].split("_")   # seq_f0 / seq_v2_f0 / seq_v2s1_f0
+        g = parts[1] if len(parts) == 3 else "v1"
+        if g not in groups:
+            continue
         sd = torch.load(p, map_location="cpu", weights_only=True)
-        ch = sd["stem.weight"].shape[0]
-        m = TCN(16, ch)
+        m = TCN(16, sd["stem.weight"].shape[0])
         m.load_state_dict(sd)
         m.eval()
-        groups["v2" if "v2" in os.path.basename(p) else "v1"].append(m)
-    log(f"loaded {len(groups['v1'])} v1 + {len(groups['v2'])} v2 models from {wdir}")
+        groups[g].append(m)
+    log("loaded " + ", ".join(f"{g}:{len(ms)}" for g, ms in groups.items()) + f" from {wdir}")
     return norm["mu"], norm["sd"], groups
 
 
@@ -253,7 +258,7 @@ def predict_full(models, hw, tw):
     x = torch.from_numpy(prep(X, mu, sd)[None])
     res = 0.0
     with torch.no_grad():
-        for name, w in (("v1", W_V1), ("v2", W_V2)):
+        for name, w in GROUP_W.items():
             r = np.mean([m(x)[0].numpy() for m in groups[name]], axis=0) * YSCALE
             res = res + w * smooth(r, RSMOOTH)
     dmd = md[ps:] - md[ps - 1]
