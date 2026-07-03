@@ -16,10 +16,14 @@ the project fundamentals; this file is the delta.
 |---|---|
 | hold-TVT | 15.910 |
 | v4 GBM+ridge (submitted) | 15.04 → **LB 15.318** |
-| TCN 3-generation ensemble + near-PS ramp (kernel v6, STAGED not submitted) | **11.699** → LB'd earlier version 11.677 |
-| PF tracker alone (port of public physical model), partial shards | **~7–10** (!!, zero training) |
+| TCN 3-generation ensemble + near-PS ramp (kernel v6, STAGED not submitted) | 11.699 → LB'd earlier version 11.677 |
+| PF tracker alone (32-seed port, full 773 wells) | 10.956 |
+| **TCN3(ramped) + PF(smoothed 101) blend, fold-honest OLS** | **9.431** (weights ≈ [.04,.26,.30] TCNs + .56 PF) |
 | public dual-pipeline reference | CV 9.21 → LB 7.2 |
 | LB leader | 5.262 |
+
+PF full-OOF artifacts: `pf_preds_*.npz` (4 shards) in the session scratchpad;
+blend recipe in `experiments/blend_pf.py` (tcn3_ramped+pf_smooth variant).
 
 ## Where I stopped (mid-flight, killed)
 1. **PF full evaluation** — 4 detached shards (`experiments/pf.py START END`) were
@@ -40,9 +44,11 @@ the project fundamentals; this file is the delta.
 #    NOTE: scripts reference the scratchpad path via HERE; they write next to themselves.
 #    The OOF raws (oof_seq*.npz), TCN weights (seq*.pt), norm.npz are ALSO in that scratchpad;
 #    weights are safe on Kaggle dataset aydhin/wellbore-tcn-weights (v2, 15 models + norm.npz).
-# 1. rerun 4 PF shards (detached):  python -u experiments/pf.py 0 194 / 194 388 / 388 581 / 581 773
-# 2. python experiments/blend_pf.py   -> the PF+TCN honest number (expect ~8-9?)
-# 3. finish v8c gate; if < 11.78 (v2 fold-0), train remaining folds + add to ensemble
+# 1. DONE — PF shards rerun (10.956 pooled standalone)
+# 2. DONE — blend = 9.431 honest (new best)
+# 3. NEXT (GPU tick): v8c fold-0 gate; if < 11.78 (v2 fold-0), train remaining folds + re-blend
+# 3b. PF upgrades (CPU ticks): 128 seeds + scales (3,5,8,12) like the public notebook
+#     (we used 32 seeds/scale5); dip-coupled pf_z variant; expect a few tenths.
 # 4. THE BIG BUILD (next model generation, TCN v4 with tracker channels):
 #    channels to add per well/cut: PF path delta + per-point std + loglik stats;
 #    GR-vs-typewell cost volume (GR - tw_gr(anchor+o) at o = ±80,±40,±20,±10,±5,0);
