@@ -16,10 +16,12 @@ from eda import DATA
 from progress import log
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SEEDS = 32          # public used 128; 32 within ~0.05 of it, 4x faster
+SEEDS = int(os.environ.get("PF_SEEDS", 32))
 NPART = 500
 MOM, VN, PN, RP, RR, RESAMP = 0.998, 0.002, 0.005, 0.1, 0.001, 0.5
 LIK_SCALE = 5.0
+SCALES = (3.0, 5.0, 8.0, 12.0)   # per-scale outputs when MULTISCALE=1
+MULTISCALE = os.environ.get("PF_MULTISCALE", "0") == "1"
 
 
 def pf_well(hw, tw, n_seeds=SEEDS, npart=NPART):
@@ -95,6 +97,13 @@ def pf_well(hw, tw, n_seeds=SEEDS, npart=NPART):
         prev = md_v[i]
 
     ln = loglik - loglik.max()
+    if MULTISCALE:
+        outs = []
+        for sc in SCALES:
+            sw = np.exp(ln / sc)
+            sw /= sw.sum()
+            outs.append((sw[:, None] * res).sum(0))
+        return ev, np.stack(outs)        # (4, n)
     sw = np.exp(ln / LIK_SCALE)
     sw /= sw.sum()
     return ev, (sw[:, None] * res).sum(0)
@@ -125,7 +134,7 @@ def main():
             continue
         ev, pred = r
         parts[w] = (ev, pred, anchor)
-        e = pred - true[ev]
+        e = (pred[1] if pred.ndim == 2 else pred) - true[ev]   # scale-5 row for progress
         h = anchor - true[ev]
         errs.append((float(np.sum(e * e)), float(np.sum(h * h)), len(e)))
         if n % 25 == 0 or n == len(wells):
@@ -133,8 +142,15 @@ def main():
             log(f"{n}/{len(wells)} pooled: pf={np.sqrt(se/c):.3f} hold={np.sqrt(sh/c):.3f}")
     se, sh, c = map(sum, zip(*errs))
     log(f"FINAL pooled: pf={np.sqrt(se/c):.4f} hold={np.sqrt(sh/c):.4f} ({c} pts, {len(parts)} wells)")
-    np.savez_compressed(os.path.join(HERE, f"pf_preds{shard}.npz"),
-                        **{w: np.concatenate([[a], p]) for w, (e, p, a) in parts.items()})
+    tag = "pf_ms" if MULTISCALE else "pf_preds"
+    out = {}
+    for w, (e, p, a) in parts.items():
+        if p.ndim == 2:
+            out[w] = p.astype(np.float32)
+            out[f"{w}__a"] = np.array([a], np.float32)
+        else:
+            out[w] = np.concatenate([[a], p]).astype(np.float32)
+    np.savez_compressed(os.path.join(HERE, f"{tag}{shard}.npz"), **out)
 
 
 if __name__ == "__main__":
