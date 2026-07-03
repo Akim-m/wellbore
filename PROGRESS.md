@@ -110,3 +110,16 @@ blend recipe in `experiments/blend_pf.py` (tcn3_ramped+pf_smooth variant).
   (GPU, machine-free check first; beat v4 fold0 9.74 to proceed to folds 1-4).
 - NOTE: venv python.exe is a launcher -> every detached job shows as TWO
   python.exe processes (parent+child). Not duplicates.
+
+## 2026-07-03 evening: v5 GATE PASSED BIG
+- All prerequisites done clean: pf_cuts multiscale (2319 cuts), beam_cuts (3092),
+  ext_cache_v5 (773 wells, 33 ch, 0 misses, 126s).
+- **v5 fold-0: raw 9.3122 / best 9.2733 (shrink .9)** vs v4's 9.74, v2's 11.78 —
+  a single fold raw now equals the whole 9.272 blend.
+- Folds 1-4 IN FLIGHT (one process, sequential; seqv5_f1234.log; ~27 min/fold).
+- On completion: run blend_v5.py (written; scratchpad + experiments/) ->
+  combines oof_seq_v5_f*.npz, honest blends w/ v4, pf s3/s8, tcn3.
+  Expect honest well under 9 -> inside the 7-9 target band.
+- Then: refresh Kaggle weights dataset (v5 .pt x5 + norm) + notebook (needs PF
+  at inference: pf.py port is notebook-compatible; beam + costvol channels too)
+  — but NO submission without the user's go.
