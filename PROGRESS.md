@@ -91,3 +91,5 @@ blend recipe in `experiments/blend_pf.py` (tcn3_ramped+pf_smooth variant).
   session's agent reports (PF/beam/NCC/FormationPlaneKNN specifics, constants, line refs).
 
 ## v4 gate result (2026-07-03): fold-0 = 9.74 raw (vs 11.78 plain TCN) — tracker channels WORK. Folds 1-4 launching; on completion: combine oof_seq_v4_f*.npz, re-blend with PF + old TCNs (blend_pf.py pattern), expect honest ~8.5-9.
+
+## Milestone (2026-07-03): honest OOF 9.353 = v4(ramped) + PF(smooth101) + tcn trio(ramped), weights [.20 .45 .01 .23 .28]. v4 folds: 9.74/10.85/10.29/12.38/9.34; v4 alone 10.62. Next: 128-seed multiscale PF (pf_ms shards launched) -> re-blend + v5 channels.
