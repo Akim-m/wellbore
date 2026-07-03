@@ -46,9 +46,16 @@ blend recipe in `experiments/blend_pf.py` (tcn3_ramped+pf_smooth variant).
 #    weights are safe on Kaggle dataset aydhin/wellbore-tcn-weights (v2, 15 models + norm.npz).
 # 1. DONE — PF shards rerun (10.956 pooled standalone)
 # 2. DONE — blend = 9.431 honest (new best)
-# 3. NEXT (GPU tick): v8c fold-0 gate; if < 11.78 (v2 fold-0), train remaining folds + re-blend
-# 3b. PF upgrades (CPU ticks): 128 seeds + scales (3,5,8,12) like the public notebook
-#     (we used 32 seeds/scale5); dip-coupled pf_z variant; expect a few tenths.
+# 3. DONE — v8c gate TIED v2 (11.82 vs 11.78): 8-cut data lever saturated; folds 1-4 NOT trained.
+# 4. IN FLIGHT — TCN v4 (tracker channels). Pipeline:
+#    a) pf_cuts.py shards (PF for aug cuts, 16 seeds) -> pf_cuts_*.npz   [launched]
+#    b) ext_cache.py -> aug_cache_v4.pkl + cache_v4.pkl (27 ch: 15 base + pf_delta + 11 costvol)
+#    c) gate: SEQV=v4 SEQ_EPOCHS=60 SEQ_CH=96 SEQ_LENPROP=1 SEQ_AMP=1
+#       SEQ_AUGCACHE=aug_cache_v4.pkl EXP_CACHE=cache_v4.pkl python -u seq.py 0
+#       (exp.py now honors EXP_CACHE for the eval cache)
+#    d) if gate clearly beats 11.78: all folds -> re-blend with PF (blend_pf.py pattern)
+# 5. Later: PF 128-seed/multi-scale for the blend member; MDN/MTP head; formation-surface
+#    gated channel; savgol sweep.
 # 4. THE BIG BUILD (next model generation, TCN v4 with tracker channels):
 #    channels to add per well/cut: PF path delta + per-point std + loglik stats;
 #    GR-vs-typewell cost volume (GR - tw_gr(anchor+o) at o = ±80,±40,±20,±10,±5,0);
@@ -82,3 +89,5 @@ blend recipe in `experiments/blend_pf.py` (tcn3_ramped+pf_smooth variant).
 - Repo: https://github.com/Akim-m/wellbore (private).
 - Public-notebook teardowns + web research: see the memory file and the
   session's agent reports (PF/beam/NCC/FormationPlaneKNN specifics, constants, line refs).
+
+## v4 gate result (2026-07-03): fold-0 = 9.74 raw (vs 11.78 plain TCN) � tracker channels WORK. Folds 1-4 launching; on completion: combine oof_seq_v4_f*.npz, re-blend with PF + old TCNs (blend_pf.py pattern), expect honest ~8.5-9.
